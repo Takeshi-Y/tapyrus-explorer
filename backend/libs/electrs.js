@@ -1,18 +1,29 @@
-const environment = require('../environments/environment');
-const config = require(environment.CONFIG);
-
+const config = require('./config')
+const jayson = require('jayson/promise');
 const client = jayson.client.tcp(config.electrs);
 
-function getRawTransaction(txid) {
-  return new Promise(resolve => {
-    client
-      .request('blockchain.transaction.get', [txid, true])
-      .then(response => {
-        resolve([response.result]);
-      });
-  });
+const request = (methodName, params) => {
+  return new Promise((resolve, reject) => {
+    client.request(methodName, params).then((response) => {
+      resolve(response.result)
+    }).catch((error) => {
+      reject(error)
+    })
+  })
 }
 
+const methods = {
+  blockchain: {
+    scripthash: {
+      get_balance: (scriptHash) =>request('blockchain.scripthash.get_balance', [scriptHash])
+    },
+    transaction: {
+      get: (tx_hash, verbose = true) => request('blockchain.transaction.get', [tx_hash, verbose])
+    }
+  }
+};
+
 module.exports = {
-  client
+  client,
+  ...methods
 };

@@ -6,8 +6,6 @@ var flatCache = require('flat-cache');
 const app = require('../app.js');
 
 const cl = require('../libs/tapyrusd').client;
-const elect = require('../libs/electrs').client;
-
 const electrs = require('../libs/electrs');
 
 log4js.configure({
@@ -58,7 +56,9 @@ function convertP2PKHHash(p2pkh) {
 
 async function getBalance(scriptPubKey) {
   const revHash = convertP2PKHHash(scriptPubKey);
-  return await elect.request('blockchain.scripthash.get_balance', [revHash]);
+  const balance = await electrs.blockchain.scripthash.get_balance(revHash);
+
+  return { result: balance };
 }
 
 const createCache = function () {
