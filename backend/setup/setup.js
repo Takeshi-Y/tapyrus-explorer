@@ -3,6 +3,7 @@ const path = require('path');
 const log4js = require('log4js');
 
 const cl = require('../libs/tapyrusd').client;
+const electrs = require('../libs/electrs');
 
 log4js.configure({
   appenders: {

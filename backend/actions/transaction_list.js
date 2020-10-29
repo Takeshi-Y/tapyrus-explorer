@@ -4,6 +4,7 @@ const log4js = require('log4js');
 const flatCache = require('flat-cache');
 
 const cl = require('../libs/tapyrusd').client;
+const electrs = require('../libs/electrs');
 
 log4js.configure({
   appenders: {

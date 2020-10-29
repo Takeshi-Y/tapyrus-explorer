@@ -2,6 +2,7 @@ const log4js = require('log4js');
 
 const app = require('../app.js');
 const cl = require('../libs/tapyrusd').client;
+const electrs = require('../libs/electrs');
 
 function getBlock(blockHash, callback) {
   cl.getBlock(blockHash)
