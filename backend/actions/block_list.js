@@ -3,7 +3,7 @@ const Jssha = require('jssha');
 const app = require('../app.js');
 
 const cl = require('../libs/tapyrusd').client;
-const elect = require('../libs/electrs').client;
+const electrs = require('../libs/electrs');
 
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
@@ -62,8 +62,9 @@ app.get('/blocks', (req, res) => {
 
         let headers = [];
         for (let i = startFromBlock; i < startFromBlock + perPage; i++) {
-          const rep = await elect.request('blockchain.block.header', [i, 0]);
-          headers.push(rep.result);
+          const header = await electrs.blockchain.block.header(i);
+
+          headers.push(header);
         }
 
         const promiseArray = headers.map(x => getBlock(internalByteOrder(x)));

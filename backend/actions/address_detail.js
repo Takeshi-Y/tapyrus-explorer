@@ -7,7 +7,6 @@ const app = require('../app.js');
 
 const cl = require('../libs/tapyrusd').client;
 const electrs = require('../libs/electrs');
-const elect = electrs.client;
 
 log4js.configure({
   appenders: {

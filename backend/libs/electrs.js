@@ -14,11 +14,17 @@ const request = (methodName, params) => {
 
 const methods = {
   blockchain: {
+    block: {
+      header: (height, cp_height = 0) =>
+        request('blockchain.block.header', [height, cp_height])
+    },
     scripthash: {
-      get_balance: (scriptHash) =>request('blockchain.scripthash.get_balance', [scriptHash])
+      get_balance: scriptHash =>
+        request('blockchain.scripthash.get_balance', [scriptHash])
     },
     transaction: {
-      get: (tx_hash, verbose = true) => request('blockchain.transaction.get', [tx_hash, verbose])
+      get: (tx_hash, verbose = true) =>
+        request('blockchain.transaction.get', [tx_hash, verbose])
     }
   }
 };
