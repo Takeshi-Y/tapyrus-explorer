@@ -34,45 +34,30 @@ app.get('/transaction/:txid', (req, res) => {
     return;
   }
 
-  cl.command([
-    {
-      method: 'getrawtransaction',
-      parameters: {
-        txid: urlTxid,
-        verbose: true
-      }
-    }
-  ])
-    .then(async responses => {
-      let results = [];
-      let response = responses[0];
-      for (var vin of response.vin) {
-        if (vin.txid) {
-          await cl
-            .command([
-              {
-                method: 'getrawtransaction',
-                parameters: {
-                  txid: vin.txid,
-                  verbose: true
-                }
-              }
-            ])
-            .then(responses => {
-              results.push(responses[0]);
-            });
-        } else {
-          results.push({});
-        }
-      }
-      response.vinRaw = results;
-      res.json(response);
-    })
-    .catch(err => {
-      logger.error(
-        `Error retrieving information for transaction - ${urlTxid}. Error Message - ${err.message}`
-      );
-    });
+   electrs.blockchain.transaction
+     .get(urlTxid, true)
+     .then(async response => {
+       let results = [];
+
+       for (var vin of response.vin) {
+         if (vin.txid) {
+           await electrs.blockchain.transaction
+             .get(vin.txid, true)
+             .then(response => {
+               results.push(response);
+             });
+         } else {
+           results.push({});
+         }
+       }
+       response.vinRaw = results;
+       res.json(response);
+     })
+     .catch(err => {
+       logger.error(
+         `Error retrieving information for transaction - ${urlTxid}. Error Message - ${err.message}`
+       );
+     });
 });
 
 app.get('/transaction/:txid/rawData', (req, res) => {
@@ -88,21 +73,10 @@ app.get('/transaction/:txid/rawData', (req, res) => {
     return;
   }
 
-  cl.command([
-    {
-      method: 'getrawtransaction',
-      parameters: {
-        txid: urlTxid
-      }
-    }
-  ])
-    .then(responses => {
-      if (responses[0].name === 'RpcError') {
-        logger.error(
-          `Error retrieving rawdata for transaction - ${urlTxid}. Error Message - ${responses[0].message}`
-        );
-      }
-      res.json(responses[0]);
+  electrs.blockchain.transaction
+    .get(urlTxid, false)
+    .then(response => {
+      res.json(response);
     })
     .catch(err => {
       logger.error(
@@ -123,22 +97,11 @@ app.get('/transaction/:txid/get', (req, res) => {
     res.status(400).send('Bad request');
     return;
   }
-  cl.command([
-    {
-      method: 'getrawtransaction',
-      parameters: {
-        txid: urlTxid,
-        verbose: true
-      }
-    }
-  ])
-    .then(responses => {
-      if (responses[0].name === 'RpcError') {
-        logger.error(
-          `Error calling the method gettransaction for transaction - ${urlTxid}. Error Message - ${responses[0].message}`
-        );
-      }
-      res.json(responses[0]);
+
+  electrs.blockchain.transaction
+    .get(urlTxid, true)
+    .then(response => {
+      res.json(response);
     })
     .catch(err => {
       logger.error(

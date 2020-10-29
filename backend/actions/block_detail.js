@@ -111,18 +111,10 @@ app.get('/block/:blockHash/txns', (req, res) => {
         let res = [];
         for (var vin of tx.vin) {
           if (vin.txid) {
-            await cl
-              .command([
-                {
-                  method: 'getrawtransaction',
-                  parameters: {
-                    txid: vin.txid,
-                    verbose: true
-                  }
-                }
-              ])
-              .then(responses => {
-                res.push(responses[0]);
+            await electrs.blockchain.transaction
+              .get(vin.txid, true)
+              .then(response => {
+                res.push(response);
               });
           } else {
             res.push({});

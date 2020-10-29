@@ -43,21 +43,9 @@ async function getBlockWithTx(blockNum) {
 
 async function getMemTx() {
   const result = await cl.getRawMempool();
-  const list = result.map(tx => {
-    const response = cl.command([
-      {
-        method: 'getrawtransaction',
-        parameters: {
-          txid: tx,
-          verbose: true
-        }
-      }
-    ]);
-    return response;
-  });
+  const list = result.map(tx => electrs.blockchain.transaction.get(tx, true));
 
-  const promiseArray = await Promise.all(list);
-  const memTxArray = promiseArray.map(list => list[0]);
+  const memTxArray = await Promise.all(list);
 
   const memEntryArray = memTxArray.map(trans => {
     const response = cl.command([
@@ -107,30 +95,18 @@ const createCache = function () {
           for (let i = 0; i < block.nTx; i++) {
             cache.setKey(`${count++}`, block.tx[i]);
 
-            await cl
-              .command([
-                {
-                  method: 'getrawtransaction',
-                  parameters: {
-                    txid: block.tx[i],
-                    verbose: true
-                  }
-                }
-              ])
-              .then(async responses => {
+            await electrs.blockchain.transaction
+              .get(block.tx[i], true)
+              .then(async response => {
+                const responses = [response];
+
                 for (var vin of responses[0].vin) {
                   if (vin.txid) {
-                    await cl
-                      .command([
-                        {
-                          method: 'getrawtransaction',
-                          parameters: {
-                            txid: vin.txid,
-                            verbose: true
-                          }
-                        }
-                      ])
-                      .then(vinResponses => {
+                    await electrs.blockchain.transaction
+                      .get(vin.txid, true)
+                      .then(response => {
+                        const vinResponses = [response];;
+
                         for (let vout of vinResponses[0].vout) {
                           for (let address of vout.scriptPubKey.addresses) {
                             //flag to represent the availability of this address in the vout of original Transaction
@@ -265,16 +241,9 @@ app.get('/transactions', (req, res) => {
 
             for (let i = startingTrans + perPage - 1; i >= startingTrans; i--) {
               let amount = 0;
-              const response = await cl.command([
-                {
-                  method: 'getrawtransaction',
-                  parameters: {
-                    txid: cache.getKey(i),
-                    verbose: true
-                  }
-                }
-              ]);
-              const trans = response[0];
+              const trans = await electrs.blockchain.transaction
+                .get(cache.getKey(i), true)
+
               trans.vout.forEach(vout => {
                 amount += vout.value;
               });

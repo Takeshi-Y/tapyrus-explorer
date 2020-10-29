@@ -6,7 +6,8 @@ var flatCache = require('flat-cache');
 const app = require('../app.js');
 
 const cl = require('../libs/tapyrusd').client;
-const elect = require('../libs/electrs').client;
+const electrs = require('../libs/electrs');
+const elect = electrs.client;
 
 log4js.configure({
   appenders: {
@@ -56,7 +57,9 @@ function convertP2PKHHash(p2pkh) {
 
 async function getBalance(scriptPubKey) {
   const revHash = convertP2PKHHash(scriptPubKey);
-  return await elect.request('blockchain.scripthash.get_balance', [revHash]);
+  const balance = await electrs.blockchain.scripthash.get_balance(revHash);
+
+  return { result: balance };
 }
 
 const createCache = function () {
@@ -85,30 +88,18 @@ const createCache = function () {
           for (let i = 0; i < block.nTx; i++) {
             cache.setKey(`${count++}`, block.tx[i]);
 
-            await cl
-              .command([
-                {
-                  method: 'getrawtransaction',
-                  parameters: {
-                    txid: block.tx[i],
-                    verbose: true
-                  }
-                }
-              ])
-              .then(async responses => {
+            await electrs.blockchain.transaction
+              .get(block.tx[i], true)
+              .then(async response => {
+                const responses = [response];
+
                 for (var vin of responses[0].vin) {
                   if (vin.txid) {
-                    await cl
-                      .command([
-                        {
-                          method: 'getrawtransaction',
-                          parameters: {
-                            txid: vin.txid,
-                            verbose: true
-                          }
-                        }
-                      ])
-                      .then(vinResponses => {
+                    await electrs.blockchain.transaction
+                      .get(vin.txid, true)
+                      .then(response => {
+                        const vinResponses = [response];
+
                         for (let vout of vinResponses[0].vout) {
                           for (let address of vout.scriptPubKey.addresses) {
                             //flag to represent the availability of this address in the vout of original Transaction
@@ -249,64 +240,54 @@ app.get('/address/:address', (req, res) => {
 
               for (let i = startFromTrans; i < startFromTrans + perPage; i++) {
                 const transId = cache.getKey(`${urlAddress}_${i}`);
-                cl.command([
-                  {
-                    method: 'getrawtransaction',
-                    parameters: {
-                      txid: transId,
-                      verbose: true
-                    }
-                  }
-                ]).then(transResponse => {
-                  cl.command([
-                    {
-                      method: 'getBlock',
-                      parameters: {
-                        blockhash: transResponse[0].blockhash
+                await electrs.blockchain.transaction
+                  .get(transId, true)
+                  .then(response => {
+                    const transResponse = [response];
+
+                    cl.command([
+                      {
+                        method: 'getBlock',
+                        parameters: {
+                          blockhash: transResponse[0].blockhash
+                        }
                       }
-                    }
-                  ]).then(async blockResponse => {
-                    transResponse[0]['blockheight'] = blockResponse[0].height;
+                    ]).then(async blockResponse => {
+                      transResponse[0]['blockheight'] = blockResponse[0].height;
 
-                    let results = [];
+                      let results = [];
 
-                    for (var vin of transResponse[0].vin) {
-                      if (vin.txid) {
-                        await cl
-                          .command([
-                            {
-                              method: 'getrawtransaction',
-                              parameters: {
-                                txid: vin.txid,
-                                verbose: true
+                      for (var vin of transResponse[0].vin) {
+                        if (vin.txid) {
+                          await electrs.blockchain.transaction
+                            .get(vin.txid, true)
+                            .then(response => {
+                              const vinResponses = [response];
+
+                              for (let vout of vinResponses[0].vout) {
+                                for (let address of vout.scriptPubKey.addresses)
+                                  results.push(address);
                               }
-                            }
-                          ])
-                          .then(vinResponses => {
-                            for (let vout of vinResponses[0].vout) {
-                              for (let address of vout.scriptPubKey.addresses)
-                                results.push(address);
-                            }
-                          });
-                      } else {
-                        results.push('');
+                            });
+                        } else {
+                          results.push('');
+                        }
                       }
-                    }
-                    transResponse[0]['inputs'] = results;
+                      transResponse[0]['inputs'] = results;
 
-                    transactions.push(transResponse[0]);
-                    if (transactions.length == perPage) {
-                      transactions = transactions.sort(
-                        (transaction1, transaction2) =>
-                          transaction2.time - transaction1.time
-                      );
-                      responses[3] = addressTransCount + 1;
-                      responses[1] = transactions;
-                      responses[2] = cache.getKey(`${urlAddress}_received`);
-                      res.json(responses);
-                    }
+                      transactions.push(transResponse[0]);
+                      if (transactions.length == perPage) {
+                        transactions = transactions.sort(
+                          (transaction1, transaction2) =>
+                            transaction2.time - transaction1.time
+                        );
+                        responses[3] = addressTransCount + 1;
+                        responses[1] = transactions;
+                        responses[2] = cache.getKey(`${urlAddress}_received`);
+                        res.json(responses);
+                      }
+                    });
                   });
-                });
               }
             }
           })

@@ -55,30 +55,18 @@ const createCache = function () {
         for (let i = 0; i < block.nTx; i++) {
           cache.setKey(`${count++}`, block.tx[i]);
 
-          await cl
-            .command([
-              {
-                method: 'getrawtransaction',
-                parameters: {
-                  txid: block.tx[i],
-                  verbose: true
-                }
-              }
-            ])
-            .then(async responses => {
+          await electrs.blockchain.transaction
+            .get(block.tx[i], true)
+            .then(async response => {
+              const responses = [response];
+
               for (var vin of responses[0].vin) {
                 if (vin.txid) {
-                  await cl
-                    .command([
-                      {
-                        method: 'getrawtransaction',
-                        parameters: {
-                          txid: vin.txid,
-                          verbose: true
-                        }
-                      }
-                    ])
-                    .then(vinResponses => {
+                  await electrs.blockchain.transaction
+                    .get(vin.txid, true)
+                    .then(response => {
+                      const vinResponses = [response];;
+
                       for (let vout of vinResponses[0].vout) {
                         for (let address of vout.scriptPubKey.addresses) {
                           //flag to represent the availability of this address in the vout of original Transaction
