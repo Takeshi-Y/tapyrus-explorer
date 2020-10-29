@@ -8,6 +8,8 @@ const app = require('../app.js');
 const cl = require('../libs/tapyrusd').client;
 const elect = require('../libs/electrs').client;
 
+const electrs = require('../libs/electrs');
+
 log4js.configure({
   appenders: {
     everything: { type: 'file', filename: 'logs.log' }
