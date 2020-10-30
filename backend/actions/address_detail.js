@@ -4,7 +4,7 @@ var flatCache = require('flat-cache');
 
 const app = require('../app.js');
 
-const cl = require('../libs/tapyrusd').client;
+const tapyrusd = require('../libs/tapyrusd').client;
 const electrs = require('../libs/electrs');
 
 log4js.configure({
@@ -28,13 +28,13 @@ app.use((req, res, next) => {
 });
 
 async function getBlockchainInfo() {
-  const result = await cl.getBlockchainInfo();
+  const result = await tapyrusd.getBlockchainInfo();
   return result.headers;
 }
 
 async function getBlockWithTx(blockNum) {
-  const blockHash = await cl.getBlockHash(blockNum);
-  const result = await cl.getBlock(blockHash);
+  const blockHash = await tapyrusd.getBlockHash(blockNum);
+  const result = await tapyrusd.getBlock(blockHash);
   return result;
 }
 
@@ -207,14 +207,7 @@ app.get('/address/:address', async (req, res) => {
       const txid = cache.getKey(`${urlAddress}_${i}`);
       const tx = await electrs.blockchain.transaction.get(txid, true);
 
-      const block = await cl.command([
-        {
-          method: 'getBlock',
-          parameters: {
-            blockhash: tx.blockhash
-          }
-        }
-      ]);
+      const block = await tapyrusd.getBlock(tx.blockHash);
       const blockHeight = block[0].height;
 
       const inputAddresses = [];
