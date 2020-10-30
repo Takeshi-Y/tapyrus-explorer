@@ -2,7 +2,7 @@ const supertest = require('supertest');
 const assert = require('assert');
 const app = require('../../server');
 require('../../actions/transaction_list');
-const cl = require('../../libs/tapyrusd').client;
+const electrs = require('../../libs/electrs');
 
 const sinon = require('sinon');
 
@@ -42,40 +42,36 @@ describe('GET /transactions return type check', function () {
 
 describe('GET /transactions and then call individual transaction using /transaction/:txid', function () {
   beforeEach(() => {
-    sinon.stub(cl, 'command').resolves([
-      {
-        txid:
-          '8c74a12270ce0520d5def8d798e320d3922c01b5da294aaaa857876c7e4e846f',
-        hash:
-          '11fd6e5f137781b524db73dc644c739c9a7141991482215544198c699b7457a9',
-        features: 1,
-        size: 91,
-        vsize: 91,
-        weight: 364,
-        locktime: 0,
-        vin: [{ coinbase: '0342a3000101', sequence: 4294967295 }],
-        vout: [
-          {
-            value: 50,
-            n: 0,
-            scriptPubKey: {
-              asm:
-                'OP_DUP OP_HASH160 6713b478d99432aac667b7d8e87f9d06edca03bb OP_EQUALVERIFY OP_CHECKSIG',
-              hex: 'ac667b7d8e87f9d06edca03bb88ac76a9146713b478d99432a',
-              reqSigs: 1,
-              type: 'pubkeyhash',
-              addresses: ['1AQ2CtG3jho78SrEzKe3vf6dxcEkJt5nzA']
-            }
+    sinon.stub(electrs.blockchain.transaction, 'get').resolves({
+      txid: '8c74a12270ce0520d5def8d798e320d3922c01b5da294aaaa857876c7e4e846f',
+      hash: '11fd6e5f137781b524db73dc644c739c9a7141991482215544198c699b7457a9',
+      features: 1,
+      size: 91,
+      vsize: 91,
+      weight: 364,
+      locktime: 0,
+      vin: [{ coinbase: '0342a3000101', sequence: 4294967295 }],
+      vout: [
+        {
+          value: 50,
+          n: 0,
+          scriptPubKey: {
+            asm:
+              'OP_DUP OP_HASH160 6713b478d99432aac667b7d8e87f9d06edca03bb OP_EQUALVERIFY OP_CHECKSIG',
+            hex: 'ac667b7d8e87f9d06edca03bb88ac76a9146713b478d99432a',
+            reqSigs: 1,
+            type: 'pubkeyhash',
+            addresses: ['1AQ2CtG3jho78SrEzKe3vf6dxcEkJt5nzA']
           }
-        ],
-        hex:
-          '0100000001000000000000000000000000000000000000000000000000000000000000000042a30000060342a3000101ffffffff0100f2052a010000001976a9146713b478d99432aac667b7d8e87f9d06edca03bb88ac00000000',
-        blockhash:
-          'aa04f9cfceb4499d5df308c37b6c197a3a19439ba1893f214e5bf4a65ac3fcf5',
-        time: 1603108230,
-        blocktime: 1603108230
-      }
-    ]);
+        }
+      ],
+      hex:
+        '0100000001000000000000000000000000000000000000000000000000000000000000000042a30000060342a3000101ffffffff0100f2052a010000001976a9146713b478d99432aac667b7d8e87f9d06edca03bb88ac00000000',
+      blockhash:
+        'aa04f9cfceb4499d5df308c37b6c197a3a19439ba1893f214e5bf4a65ac3fcf5',
+      time: 1603108230,
+      blocktime: 1603108230
+    });
   });
 
   afterEach(() => {

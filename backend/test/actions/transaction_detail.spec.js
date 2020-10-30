@@ -2,7 +2,7 @@ const supertest = require('supertest');
 const assert = require('assert');
 const app = require('../../server');
 require('../../actions/transaction_detail');
-const cl = require('../../libs/tapyrusd').client;
+const electrs = require('../../libs/electrs');
 
 const sinon = require('sinon');
 
@@ -48,52 +48,44 @@ function isEmpty(obj) {
 describe('GET /transaction/:txid with sinon.stub', function () {
   beforeEach(() => {
     sinon
-      .stub(cl, 'command')
-      .withArgs([
-        {
-          method: 'getrawtransaction',
-          parameters: {
-            txid:
-              'a82d9931eece4f2504691810db4a11d406a6eb2345b739fc35bb4f993d85e7c8',
-            verbose: true
-          }
-        }
-      ])
-      .resolves([
-        {
-          txid:
-            'a82d9931eece4f2504691810db4a11d406a6eb2345b739fc35bb4f993d85e7c8',
-          hash:
-            'fa305c408bbedc3043658845b1605b0f02e89dc471b9c86d1b74a7b8b1b9d531',
-          features: 1,
-          size: 90,
-          vsize: 90,
-          weight: 360,
-          locktime: 0,
-          vin: [{ coinbase: '08f2770101', sequence: 9672954294 }],
-          vout: [
-            {
-              value: 50,
-              n: 0,
-              scriptPubKey: {
-                asm:
-                  'OP_DUP OP_HASH160 6713b478d99432aac667b7d8e87f9d06edca03bb OP_EQUALVERIFY OP_CHECKSIG',
-                hex: 'ac667b7d8e87f9d06edca03bb88ac76a9146713b478d99432a',
-                reqSigs: 1,
-                type: 'pubkeyhash',
-                addresses: ['1AQ2CtG3jho78SrEzKe3vf6dxcEkJt5nzA']
-              }
+      .stub(electrs.blockchain.transaction, 'get')
+      .withArgs(
+        'a82d9931eece4f2504691810db4a11d406a6eb2345b739fc35bb4f993d85e7c8',
+        true
+      )
+      .resolves({
+        txid:
+          'a82d9931eece4f2504691810db4a11d406a6eb2345b739fc35bb4f993d85e7c8',
+        hash:
+          'fa305c408bbedc3043658845b1605b0f02e89dc471b9c86d1b74a7b8b1b9d531',
+        features: 1,
+        size: 90,
+        vsize: 90,
+        weight: 360,
+        locktime: 0,
+        vin: [{ coinbase: '08f2770101', sequence: 9672954294 }],
+        vout: [
+          {
+            value: 50,
+            n: 0,
+            scriptPubKey: {
+              asm:
+                'OP_DUP OP_HASH160 6713b478d99432aac667b7d8e87f9d06edca03bb OP_EQUALVERIFY OP_CHECKSIG',
+              hex: 'ac667b7d8e87f9d06edca03bb88ac76a9146713b478d99432a',
+              reqSigs: 1,
+              type: 'pubkeyhash',
+              addresses: ['1AQ2CtG3jho78SrEzKe3vf6dxcEkJt5nzA']
             }
-          ],
-          hex:
-            '01000000010000000000000000000000000000000000000000000000000000000000000000e37700000502e3770101ffffffff0100f2052a010000001976a9146713b478d99432aac667b7d8e87f9d06edca03bb88ac00000000',
-          blockhash:
-            '69b5964caf1e85883dfe60ddf4ace9e301e7b21a923f8fc82f47b0deae366a2b',
-          confirmations: 28,
-          time: 1599509432,
-          blocktime: 1599509432
-        }
-      ]);
+          }
+        ],
+        hex:
+          '01000000010000000000000000000000000000000000000000000000000000000000000000e37700000502e3770101ffffffff0100f2052a010000001976a9146713b478d99432aac667b7d8e87f9d06edca03bb88ac00000000',
+        blockhash:
+          '69b5964caf1e85883dfe60ddf4ace9e301e7b21a923f8fc82f47b0deae366a2b',
+        confirmations: 28,
+        time: 1599509432,
+        blocktime: 1599509432
+      });
   });
 
   afterEach(() => {
@@ -185,19 +177,13 @@ describe('GET /transaction/:txid/rawData return type check', function () {
 describe('GET /transaction/:txid/rawData with sinon.stub', function () {
   beforeEach(() => {
     sinon
-      .stub(cl, 'command')
-      .withArgs([
-        {
-          method: 'getrawtransaction',
-          parameters: {
-            txid:
-              'a82d9931eece4f2504691810db4a11d406a6eb2345b739fc35bb4f993d85e7c8'
-          }
-        }
-      ])
-      .resolves([
+      .stub(electrs.blockchain.transaction, 'get')
+      .withArgs(
+        'a82d9931eece4f2504691810db4a11d406a6eb2345b739fc35bb4f993d85e7c8'
+      )
+      .resolves(
         '01000000010000000000000000000000000000000000000000000000000000000000000000c57700000502c5770101ffffffff0100f2052a010000001976a9146713b478d99432aac667b7d8e87f9d06edca03bb88ac00000000'
-      ]);
+      );
   });
 
   afterEach(() => {
@@ -262,52 +248,44 @@ describe('GET /transaction/:txid/get return type check', function () {
 describe('GET /transaction/:txid/get with sinon.stub', function () {
   beforeEach(() => {
     sinon
-      .stub(cl, 'command')
-      .withArgs([
-        {
-          method: 'getrawtransaction',
-          parameters: {
-            txid:
-              'a82d9931eece4f2504691810db4a11d406a6eb2345b739fc35bb4f993d85e7c8',
-            verbose: true
-          }
-        }
-      ])
-      .resolves([
-        {
-          txid:
-            'a82d9931eece4f2504691810db4a11d406a6eb2345b739fc35bb4f993d85e7c8',
-          hash:
-            'fa305c408bbedc3043658845b1605b0f02e89dc471b9c86d1b74a7b8b1b9d531',
-          features: 1,
-          size: 90,
-          vsize: 90,
-          weight: 360,
-          locktime: 0,
-          vin: [{ coinbase: '08f2770101', sequence: 9672954294 }],
-          vout: [
-            {
-              value: 50,
-              n: 0,
-              scriptPubKey: {
-                asm:
-                  'OP_DUP OP_HASH160 6713b478d99432aac667b7d8e87f9d06edca03bb OP_EQUALVERIFY OP_CHECKSIG',
-                hex: 'ac667b7d8e87f9d06edca03bb88ac76a9146713b478d99432a',
-                reqSigs: 1,
-                type: 'pubkeyhash',
-                addresses: ['1AQ2CtG3jho78SrEzKe3vf6dxcEkJt5nzA']
-              }
+      .stub(electrs.blockchain.transaction, 'get')
+      .withArgs(
+        'a82d9931eece4f2504691810db4a11d406a6eb2345b739fc35bb4f993d85e7c8',
+        true
+      )
+      .resolves({
+        txid:
+          'a82d9931eece4f2504691810db4a11d406a6eb2345b739fc35bb4f993d85e7c8',
+        hash:
+          'fa305c408bbedc3043658845b1605b0f02e89dc471b9c86d1b74a7b8b1b9d531',
+        features: 1,
+        size: 90,
+        vsize: 90,
+        weight: 360,
+        locktime: 0,
+        vin: [{ coinbase: '08f2770101', sequence: 9672954294 }],
+        vout: [
+          {
+            value: 50,
+            n: 0,
+            scriptPubKey: {
+              asm:
+                'OP_DUP OP_HASH160 6713b478d99432aac667b7d8e87f9d06edca03bb OP_EQUALVERIFY OP_CHECKSIG',
+              hex: 'ac667b7d8e87f9d06edca03bb88ac76a9146713b478d99432a',
+              reqSigs: 1,
+              type: 'pubkeyhash',
+              addresses: ['1AQ2CtG3jho78SrEzKe3vf6dxcEkJt5nzA']
             }
-          ],
-          hex:
-            '01000000010000000000000000000000000000000000000000000000000000000000000000e37700000502e3770101ffffffff0100f2052a010000001976a9146713b478d99432aac667b7d8e87f9d06edca03bb88ac00000000',
-          blockhash:
-            '69b5964caf1e85883dfe60ddf4ace9e301e7b21a923f8fc82f47b0deae366a2b',
-          confirmations: 28,
-          time: 1599509432,
-          blocktime: 1599509432
-        }
-      ]);
+          }
+        ],
+        hex:
+          '01000000010000000000000000000000000000000000000000000000000000000000000000e37700000502e3770101ffffffff0100f2052a010000001976a9146713b478d99432aac667b7d8e87f9d06edca03bb88ac00000000',
+        blockhash:
+          '69b5964caf1e85883dfe60ddf4ace9e301e7b21a923f8fc82f47b0deae366a2b',
+        confirmations: 28,
+        time: 1599509432,
+        blocktime: 1599509432
+      });
   });
 
   afterEach(() => {

@@ -2,7 +2,7 @@ const supertest = require('supertest');
 const assert = require('assert');
 const app = require('../../server');
 require('../../actions/address_detail');
-const elect = require('../../libs/electrs').client;
+const electrs = require('../../libs/electrs');
 
 const sinon = require('sinon');
 
@@ -35,15 +35,11 @@ describe('GET /address return type check', function () {
 describe('GET /address with sinon.stub', function () {
   beforeEach(() => {
     sinon
-      .stub(elect, 'request')
-      .withArgs('blockchain.scripthash.get_balance', [
+      .stub(electrs.blockchain.scripthash, 'get_balance')
+      .withArgs(
         '38bf47ffa420b5ff50a3ca04411a4f4b3c7f6ea63a47732674501ab67776d923'
-      ])
-      .resolves({
-        id: 'fa882394-d604-45e1-b7fe-56d230c9a1e1',
-        jsonrpc: '2.0',
-        result: [{ confirmed: 109988776, unconfirmed: 0 }]
-      });
+      )
+      .resolves([{ confirmed: 109988776, unconfirmed: 0 }]);
   });
 
   afterEach(() => {

@@ -106,7 +106,7 @@ const createCache = function () {
                     await electrs.blockchain.transaction
                       .get(vin.txid, true)
                       .then(response => {
-                        const vinResponses = [response];;
+                        const vinResponses = [response];
 
                         for (let vout of vinResponses[0].vout) {
                           for (let address of vout.scriptPubKey.addresses) {

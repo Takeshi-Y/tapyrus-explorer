@@ -1,16 +1,19 @@
-const config = require('./config')
+const config = require('./config');
 const jayson = require('jayson/promise');
 const client = jayson.client.tcp(config.electrs);
 
 const request = (methodName, params) => {
   return new Promise((resolve, reject) => {
-    client.request(methodName, params).then((response) => {
-      resolve(response.result)
-    }).catch((error) => {
-      reject(error)
-    })
-  })
-}
+    client
+      .request(methodName, params)
+      .then(response => {
+        resolve(response.result);
+      })
+      .catch(error => {
+        reject(error);
+      });
+  });
+};
 
 const methods = {
   blockchain: {
