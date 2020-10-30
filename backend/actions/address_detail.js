@@ -1,7 +1,5 @@
 const log4js = require('log4js');
-
 const app = require('../app.js');
-
 const { createCache, loadCache } = require('../libs/cache');
 const tapyrusd = require('../libs/tapyrusd').client;
 const electrs = require('../libs/electrs');
@@ -14,8 +12,7 @@ log4js.configure({
     default: { appenders: ['everything'], level: 'error' }
   }
 });
-
-var logger = log4js.getLogger();
+const logger = log4js.getLogger();
 
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
@@ -46,7 +43,7 @@ app.get('/address/:address', async (req, res) => {
 
     const bestBlockHeight = await tapyrusd.getBlockCount();
     if (cache.getKey(`bestBlockHeight`) !== bestBlockHeight) {
-      throw new Error('Best block height unmatch.');
+      throw new Error("Cache's best Block Height is not updated");
     }
 
     const scriptHash = electrs.convertToScriptHash(urlAddress);

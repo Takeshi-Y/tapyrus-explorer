@@ -1,17 +1,7 @@
 const log4js = require('log4js');
-
 const app = require('../app.js');
 const tapyrusd = require('../libs/tapyrusd').client;
 const electrs = require('../libs/electrs');
-
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header(
-    'Access-Control-Allow-Headers',
-    'Origin, X-Requested-With, Content-Type, Accept'
-  );
-  next();
-});
 
 log4js.configure({
   appenders: {
@@ -21,8 +11,16 @@ log4js.configure({
     default: { appenders: ['everything'], level: 'error' }
   }
 });
+const logger = log4js.getLogger();
 
-var logger = log4js.getLogger();
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept'
+  );
+  next();
+});
 
 app.get('/block/:blockHash', async (req, res) => {
   const regex = new RegExp(/^[0-9a-fA-F]{64}$/);

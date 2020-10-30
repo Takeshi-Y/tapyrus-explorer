@@ -1,9 +1,11 @@
-const Jssha = require('jssha');
-
+const crypto = require('crypto');
+const log4js = require('log4js');
 const app = require('../app.js');
-
-const cl = require('../libs/tapyrusd').client;
+const tapyrusd = require('../libs/tapyrusd').client;
 const electrs = require('../libs/electrs');
+
+const logger = log4js.getLogger();
+logger.level = 'ERRORS';
 
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
@@ -14,22 +16,12 @@ app.use((req, res, next) => {
   next();
 });
 
-var log4js = require('log4js');
-var logger = log4js.getLogger();
-logger.level = 'ERRORS';
-
-function getBlock(blockHash) {
-  const ret = cl.getBlock(blockHash);
-  return ret;
-}
-
-function sha256(text) {
-  const hashFunction = new Jssha('SHA-256', 'HEX');
-  hashFunction.update(text);
-  return hashFunction.getHash('HEX');
-}
-
 function internalByteOrder(hex) {
+  const sha256 = text => {
+    const sha256 = crypto.createHash('sha256');
+    return sha256.update(Buffer.from(text, 'hex')).digest().toString('hex');
+  };
+
   const calcHash = sha256(sha256(hex));
   const byteOrder = calcHash.match(/.{2}/g);
   let byteStr = '';
@@ -40,45 +32,36 @@ function internalByteOrder(hex) {
   return header;
 }
 
-async function getBlockchainInfo() {
-  const result = await cl.getBlockchainInfo();
-  return result.headers;
-}
+app.get('/blocks', async (req, res) => {
+  let perPage = Number(req.query.perPage);
+  const page = Number(req.query.page);
 
-app.get('/blocks', (req, res) => {
   try {
-    var perPage = Number(req.query.perPage);
-    var page = Number(req.query.page);
+    const bestBlockHeight = await tapyrusd.getBlockCount();
+    let startFromBlock = bestBlockHeight - perPage * page + 1;
 
-    getBlockchainInfo()
-      .then(async bestBlockHeight => {
-        var startFromBlock = bestBlockHeight - perPage * page + 1;
+    if (startFromBlock <= 0) {
+      //if last page's remainder should use different value of startFromBlock and perPage
+      startFromBlock = 0;
+      perPage = (bestBlockHeight % perPage) + 1;
+    }
 
-        if (startFromBlock <= 0) {
-          //if last page's remainder should use different value of startFromBlock and perPage
-          startFromBlock = 0;
-          perPage = (bestBlockHeight % perPage) + 1;
-        }
+    const headers = [];
+    for (let i = startFromBlock; i < startFromBlock + perPage; i++) {
+      const header = await electrs.blockchain.block.header(i);
 
-        let headers = [];
-        for (let i = startFromBlock; i < startFromBlock + perPage; i++) {
-          const header = await electrs.blockchain.block.header(i);
+      headers.push(header);
+    }
 
-          headers.push(header);
-        }
+    const promiseArray = headers.map(x =>
+      tapyrusd.getBlock(internalByteOrder(x))
+    );
+    const result = await Promise.all(promiseArray);
 
-        const promiseArray = headers.map(x => getBlock(internalByteOrder(x)));
-        const result = await Promise.all(promiseArray);
-        res.json({
-          results: result,
-          bestHeight: bestBlockHeight
-        });
-      })
-      .catch(err => {
-        logger.error(
-          `Error retrieving ${perPage} blocks for page#${page}. Error Message - ${err.message}`
-        );
-      });
+    res.json({
+      results: result,
+      bestHeight: bestBlockHeight
+    });
   } catch (err) {
     logger.error(
       `Error retrieving ${perPage} blocks for page#${page}. Error Message - ${err.message}`

@@ -1,6 +1,5 @@
-const app = require('../app.js');
 const log4js = require('log4js');
-
+const app = require('../app.js');
 const electrs = require('../libs/electrs');
 
 log4js.configure({
@@ -11,8 +10,7 @@ log4js.configure({
     default: { appenders: ['everything'], level: 'error' }
   }
 });
-
-var logger = log4js.getLogger();
+const logger = log4js.getLogger();
 
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
@@ -23,7 +21,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.get('/transaction/:txid', (req, res) => {
+app.get('/transaction/:txid', async (req, res) => {
   const regex = new RegExp(/^[0-9a-fA-F]{64}$/);
   const urlTxid = req.params.txid;
 
@@ -34,33 +32,24 @@ app.get('/transaction/:txid', (req, res) => {
     return;
   }
 
-   electrs.blockchain.transaction
-     .get(urlTxid, true)
-     .then(async response => {
-       let results = [];
+  try {
+    const tx = await electrs.blockchain.transaction.get(urlTxid, true);
 
-       for (var vin of response.vin) {
-         if (vin.txid) {
-           await electrs.blockchain.transaction
-             .get(vin.txid, true)
-             .then(response => {
-               results.push(response);
-             });
-         } else {
-           results.push({});
-         }
-       }
-       response.vinRaw = results;
-       res.json(response);
-     })
-     .catch(err => {
-       logger.error(
-         `Error retrieving information for transaction - ${urlTxid}. Error Message - ${err.message}`
-       );
-     });
+    tx.vinRaw = tx.vin.map(async vin => {
+      if (!vin.txid) return {};
+
+      return await electrs.blockchain.transaction.get(vin.txid, true);
+    });
+
+    res.json(tx);
+  } catch (error) {
+    logger.error(
+      `Error retrieving information for transaction - ${urlTxid}. Error Message - ${error.message}`
+    );
+  }
 });
 
-app.get('/transaction/:txid/rawData', (req, res) => {
+app.get('/transaction/:txid/rawData', async (req, res) => {
   const regex = new RegExp(/^[0-9a-fA-F]{64}$/);
   const urlTxid = req.params.txid;
 
@@ -73,19 +62,18 @@ app.get('/transaction/:txid/rawData', (req, res) => {
     return;
   }
 
-  electrs.blockchain.transaction
-    .get(urlTxid, false)
-    .then(response => {
-      res.json(response);
-    })
-    .catch(err => {
-      logger.error(
-        `Error retrieving rawdata for transaction - ${urlTxid}. Error Message - ${err.message}`
-      );
-    });
+  try {
+    const tx = await electrs.blockchain.transaction.get(urlTxid, false);
+
+    res.json(tx);
+  } catch (error) {
+    logger.error(
+      `Error retrieving rawdata for transaction - ${urlTxid}. Error Message - ${error.message}`
+    );
+  }
 });
 
-app.get('/transaction/:txid/get', (req, res) => {
+app.get('/transaction/:txid/get', async (req, res) => {
   const urlTxid = req.params.txid;
   const regex = new RegExp(/^[0-9a-fA-F]{64}$/);
 
@@ -98,14 +86,13 @@ app.get('/transaction/:txid/get', (req, res) => {
     return;
   }
 
-  electrs.blockchain.transaction
-    .get(urlTxid, true)
-    .then(response => {
-      res.json(response);
-    })
-    .catch(err => {
-      logger.error(
-        `Error calling the method gettransaction for transaction - ${urlTxid}. Error Message - ${err.message}`
-      );
-    });
+  try {
+    const tx = await electrs.blockchain.transaction.get(urlTxid, true);
+
+    res.json(tx);
+  } catch (error) {
+    logger.error(
+      `Error calling the method gettransaction for transaction - ${urlTxid}. Error Message - ${error.message}`
+    );
+  }
 });

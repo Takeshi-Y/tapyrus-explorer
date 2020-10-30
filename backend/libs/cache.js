@@ -1,7 +1,18 @@
+const log4js = require('log4js');
 const path = require('path');
 const flatCache = require('flat-cache');
 const tapyrusd = require('../libs/tapyrusd').client;
 const electrs = require('../libs/electrs');
+
+log4js.configure({
+  appenders: {
+    everything: { type: 'file', filename: 'logs.log' }
+  },
+  categories: {
+    default: { appenders: ['everything'], level: 'error' }
+  }
+});
+const logger = log4js.getLogger();
 
 async function getBlockchainInfo() {
   const result = await tapyrusd.getBlockchainInfo();
@@ -28,7 +39,8 @@ const createCache = function () {
         //bestBlockHeight = bestBlockHeight - 40000;
 
         if (!cacheBestBlockHeight) cacheBestBlockHeight = 0;
-        else if (cacheBestBlockHeight == bestBlockHeight) {
+        else if (cacheBestBlockHeight >= bestBlockHeight) {
+          logger.info('Cache is up-to-date');
           return resolve();
         } else {
           cacheBestBlockHeight++;
@@ -125,8 +137,8 @@ const createCache = function () {
         cache.setKey('bestBlockHeight', bestBlockHeight);
         cache.setKey('transactionCount', count);
 
-        console.log('Updated cache till block height -> ', bestBlockHeight);
-        console.log('New transaction count -> ', count);
+        logger.info('Updated cache till block height -> ', bestBlockHeight);
+        logger.info('New transaction count -> ', count);
 
         cache.save(true /* noPrune */);
         return resolve();
