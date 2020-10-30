@@ -54,13 +54,6 @@ function convertP2PKHHash(p2pkh) {
   return newHash;
 }
 
-async function getBalance(scriptPubKey) {
-  const revHash = convertP2PKHHash(scriptPubKey);
-  const balance = await electrs.blockchain.scripthash.get_balance(revHash);
-
-  return { result: balance };
-}
-
 const createCache = function () {
   return new Promise((resolve, reject) => {
     try {
@@ -184,9 +177,9 @@ const createCache = function () {
   });
 };
 
-app.get('/address/:address', (req, res) => {
-  var perPage = Number(req.query.perPage);
-  var page = Number(req.query.page);
+app.get('/address/:address', async (req, res) => {
+  let perPage = Number(req.query.perPage);
+  const page = Number(req.query.page);
 
   const regex = new RegExp(/^[0-9a-zA-Z]{26,35}$/);
   const urlAddress = req.params.address;
@@ -198,108 +191,94 @@ app.get('/address/:address', (req, res) => {
     return;
   }
 
-  getBlockchainInfo()
-    .then(async bestBlockHeight => {
-      createCache().then(async () => {
-        const cache = flatCache.load(
-          'transactionCache',
-          path.resolve('./tmp/cache')
-        );
-        //bestBlockHeight = bestBlockHeight - 40000;
+  try {
+    const bestBlockHeight = await getBlockchainInfo();
+    await createCache();
+    const cache = flatCache.load(
+      'transactionCache',
+      path.resolve('./tmp/cache')
+    );
 
-        // bitcoin-cli listreceivedbyaddress 0 true true  bcrt1q83ttww2z7d20gwsze4eq9py5s45j48y7smvtdc
-        cl.command([
-          {
-            //wallet rpc
-            method: 'getAddressInfo',
-            parameters: {
-              address: urlAddress
-            }
+    if (cache.getKey(`bestBlockHeight`) !== bestBlockHeight) {
+      throw new Error('Best block height unmatch.');
+    }
+
+    const addressInfo = await cl.command([
+      {
+        //wallet rpc
+        method: 'getAddressInfo',
+        parameters: {
+          address: urlAddress
+        }
+      }
+    ]);
+
+    const scriptPubKey = addressInfo[0].scriptPubKey;
+    const revHash = convertP2PKHHash(scriptPubKey);
+    const balances = await electrs.blockchain.scripthash.get_balance(revHash);
+    const balance = (balances && balances[0] && balances[0].confirmed) || 0;
+
+    const addressTxsCount = cache.getKey(`${urlAddress}_count`);
+
+    let startFromTxs = addressTxsCount - perPage * page + 1;
+    if (startFromTxs < 0) {
+      //if last page's remainder should use different value of startFromBlock and perPage
+      startFromTxs = 0;
+      perPage = (addressTxsCount + 1) % perPage;
+    }
+
+    const transactions = [];
+    for (let i = startFromTxs; i < startFromTxs + perPage; i++) {
+      const txid = cache.getKey(`${urlAddress}_${i}`);
+      const tx = await electrs.blockchain.transaction.get(txid, true);
+
+      const block = await cl.command([
+        {
+          method: 'getBlock',
+          parameters: {
+            blockhash: tx.blockhash
           }
-        ])
-          .then(async responses => {
-            if (cache.getKey(`bestBlockHeight`) === bestBlockHeight) {
-              let transactions = [];
-              const scriptPubKey = responses[0].scriptPubKey;
+        }
+      ]);
+      const blockHeight = block[0].height;
 
-              const balance = await getBalance(scriptPubKey);
-              if (balance.result.length === 0) {
-                responses[0] = 0;
-              } else responses[0] = balance.result[0].confirmed;
+      const inputAddresses = [];
+      tx.vin.forEach(async vin => {
+        if (!vin.txid) {
+          inputAddresses.push('');
+          return;
+        }
 
-              const addressTransCount = cache.getKey(`${urlAddress}_count`);
-
-              var startFromTrans = addressTransCount - perPage * page + 1;
-
-              if (startFromTrans < 0) {
-                //if last page's remainder should use different value of startFromBlock and perPage
-                startFromTrans = 0;
-                perPage = (addressTransCount + 1) % perPage;
-              }
-
-              for (let i = startFromTrans; i < startFromTrans + perPage; i++) {
-                const transId = cache.getKey(`${urlAddress}_${i}`);
-                await electrs.blockchain.transaction
-                  .get(transId, true)
-                  .then(response => {
-                    const transResponse = [response];
-
-                    cl.command([
-                      {
-                        method: 'getBlock',
-                        parameters: {
-                          blockhash: transResponse[0].blockhash
-                        }
-                      }
-                    ]).then(async blockResponse => {
-                      transResponse[0]['blockheight'] = blockResponse[0].height;
-
-                      let results = [];
-
-                      for (var vin of transResponse[0].vin) {
-                        if (vin.txid) {
-                          await electrs.blockchain.transaction
-                            .get(vin.txid, true)
-                            .then(response => {
-                              const vinResponses = [response];
-
-                              for (let vout of vinResponses[0].vout) {
-                                for (let address of vout.scriptPubKey.addresses)
-                                  results.push(address);
-                              }
-                            });
-                        } else {
-                          results.push('');
-                        }
-                      }
-                      transResponse[0]['inputs'] = results;
-
-                      transactions.push(transResponse[0]);
-                      if (transactions.length == perPage) {
-                        transactions = transactions.sort(
-                          (transaction1, transaction2) =>
-                            transaction2.time - transaction1.time
-                        );
-                        responses[3] = addressTransCount + 1;
-                        responses[1] = transactions;
-                        responses[2] = cache.getKey(`${urlAddress}_received`);
-                        res.json(responses);
-                      }
-                    });
-                  });
-              }
-            }
-          })
-          .catch(err => {
-            logger.error(
-              `Error retrieving information for addresss - ${urlAddress}. Error Message - ${err.message}`
-            );
+        const inputTx = await electrs.blockchain.transaction.get(
+          vin.txid,
+          true
+        );
+        inputTx.vout.forEach(vout => {
+          vout.scriptPubKey.addresses.forEach(address => {
+            inputAddresses.push(address);
           });
+        });
       });
-    })
-    .catch(err => {
-      logger.error(
-        `Error retrieving information for addresss - ${urlAddress}. Error Message - ${err.message}`
+
+      transactions.push(
+        Object.assign({}, tx, {
+          blockheight: blockHeight,
+          inputs: inputAddresses
+        })
       );
-    });
+
+      if (transactions.length == perPage) {
+        res.json([
+          balance,
+          transactions.sort((tx1, tx2) => tx2.time - tx1.time),
+          cache.getKey(`${urlAddress}_received`),
+          addressTxsCount + 1
+        ]);
+      }
+    }
+  } catch (error) {
+    logger.error(
+      `Error retrieving information for addresss - ${urlAddress}. Error Message - ${error.message}`
+    );
+  }
 });
