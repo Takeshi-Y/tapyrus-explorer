@@ -1,11 +1,8 @@
 const crypto = require('crypto');
-const log4js = require('log4js');
 const app = require('../app.js');
 const tapyrusd = require('../libs/tapyrusd').client;
 const electrs = require('../libs/electrs');
-
-const logger = log4js.getLogger();
-logger.level = 'ERRORS';
+const logger = require('../libs/logger');
 
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');

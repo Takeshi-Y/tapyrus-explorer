@@ -1,18 +1,8 @@
-const log4js = require('log4js');
 const app = require('../app.js');
 const { createCache, loadCache } = require('../libs/cache');
 const tapyrusd = require('../libs/tapyrusd').client;
 const electrs = require('../libs/electrs');
-
-log4js.configure({
-  appenders: {
-    everything: { type: 'file', filename: 'logs.log' }
-  },
-  categories: {
-    default: { appenders: ['everything'], level: 'error' }
-  }
-});
-const logger = log4js.getLogger();
+const logger = require('../libs/logger');
 
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');

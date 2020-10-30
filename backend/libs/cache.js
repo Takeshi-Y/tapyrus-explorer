@@ -1,18 +1,8 @@
-const log4js = require('log4js');
 const path = require('path');
 const flatCache = require('flat-cache');
 const tapyrusd = require('../libs/tapyrusd').client;
 const electrs = require('../libs/electrs');
-
-log4js.configure({
-  appenders: {
-    everything: { type: 'file', filename: 'logs.log' }
-  },
-  categories: {
-    default: { appenders: ['everything'], level: 'error' }
-  }
-});
-const logger = log4js.getLogger();
+const logger = require('../libs/logger');
 
 async function getBlockchainInfo() {
   const result = await tapyrusd.getBlockchainInfo();
@@ -47,6 +37,7 @@ const createCache = function () {
           count = cache.getKey(`transactionCount`);
         }
         while (cacheBestBlockHeight <= bestBlockHeight) {
+          logger.info('current block height: ', cacheBestBlockHeight);
           const block = await getBlockWithTx(cacheBestBlockHeight);
 
           for (let i = 0; i < block.nTx; i++) {
