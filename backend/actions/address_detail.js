@@ -1,5 +1,4 @@
 const path = require('path');
-const Jssha = require('jssha');
 const log4js = require('log4js');
 var flatCache = require('flat-cache');
 
@@ -37,21 +36,6 @@ async function getBlockWithTx(blockNum) {
   const blockHash = await cl.getBlockHash(blockNum);
   const result = await cl.getBlock(blockHash);
   return result;
-}
-
-function sha256(text) {
-  const hashFunction = new Jssha('SHA-256', 'HEX');
-  hashFunction.update(text);
-  return hashFunction.getHash('HEX');
-}
-
-function convertP2PKHHash(p2pkh) {
-  const hash = sha256(p2pkh);
-  let newHash = '';
-  for (let i = hash.length - 2; i >= 0; i -= 2) {
-    newHash = newHash.concat(hash.slice(i, i + 2));
-  }
-  return newHash;
 }
 
 const createCache = function () {
@@ -203,19 +187,10 @@ app.get('/address/:address', async (req, res) => {
       throw new Error('Best block height unmatch.');
     }
 
-    const addressInfo = await cl.command([
-      {
-        //wallet rpc
-        method: 'getAddressInfo',
-        parameters: {
-          address: urlAddress
-        }
-      }
-    ]);
-
-    const scriptPubKey = addressInfo[0].scriptPubKey;
-    const revHash = convertP2PKHHash(scriptPubKey);
-    const balances = await electrs.blockchain.scripthash.get_balance(revHash);
+    const scriptHash = electrs.convertToScriptHash(urlAddress);
+    const balances = await electrs.blockchain.scripthash.get_balance(
+      scriptHash
+    );
     const balance = (balances && balances[0] && balances[0].confirmed) || 0;
 
     const addressTxsCount = cache.getKey(`${urlAddress}_count`);

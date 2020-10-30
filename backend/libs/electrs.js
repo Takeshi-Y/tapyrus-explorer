@@ -1,6 +1,8 @@
 const config = require('./config');
 const jayson = require('jayson/promise');
 const client = jayson.client.tcp(config.electrs);
+const bitcoin = require('bitcoinjs-lib');
+const crypto = require('crypto');
 
 const request = (methodName, params) => {
   return new Promise((resolve, reject) => {
@@ -32,7 +34,16 @@ const methods = {
   }
 };
 
+const convertToScriptHash = address => {
+  const p2pkh = bitcoin.payments.p2pkh({ address });
+  const buf = Buffer.from(p2pkh.output, 'hex');
+  const sha256 = crypto.createHash('sha256');
+
+  return sha256.update(buf).digest().reverse().toString('hex');
+};
+
 module.exports = {
   client,
+  convertToScriptHash,
   ...methods
 };
