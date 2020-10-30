@@ -7,7 +7,7 @@
     "setup": "node setup/setup.js",
     "test": "mocha test/actions",
     "start": "nodemon server.js",
-    "pretest": "eslint actions/",
+    "pretest": "eslint actions/ libs/",
     "prettier": "prettier --write .",
     "prettier-ci": "prettier --check ."
   },

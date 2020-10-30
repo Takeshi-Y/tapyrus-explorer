@@ -19,7 +19,7 @@ try {
   const environmentConfig = require(environment.CONFIG);
 
   config = Object.assign({}, defaultConfig, environmentConfig);
-} catch {
+} catch (_) {
   config = defaultConfig;
 }
 
