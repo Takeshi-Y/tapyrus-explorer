@@ -1,3 +1,5 @@
 const { createCache } = require('../libs/cache');
 
-createCache();
+createCache().catch(error => {
+  logger.error(error.message);
+});

@@ -29,11 +29,13 @@ const createCache = async () => {
 
     block.tx.forEach(async txid => {
       cache.setKey(`${transactionCount++}`, txid);
-      const tx = electrs.blockchain.transaction.get(txid, true);
+      const tx = await electrs.blockchain.transaction.get(txid, true);
+
       tx.vin.forEach(async vin => {
         if (!vin.txid) return;
 
         const vinTx = await electrs.blockchain.transaction.get(vin.txid, true);
+
         vinTx.vout.forEach(vout => {
           vout.scriptPubKey.addresses.forEach(address => {
             // flag to represent the availability of this address in the vout of original Transaction
